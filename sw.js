@@ -1,11 +1,12 @@
 // Service Worker: オフラインでも遊べるようにキャッシュする
-const CACHE = "ninja-kobo-v2";
+const CACHE = "ninja-kobo-v3";
 const ASSETS = [
   "./",
   "./index.html",
   "./style.css",
   "./data.js",
   "./gen.js",
+  "./ads.js",
   "./game.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
@@ -27,6 +28,8 @@ self.addEventListener("activate", e => {
 
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+  // 広告など外部リソースはキャッシュせず常にネットワークへ
+  if (!e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then(cached =>
       cached ||

@@ -97,6 +97,7 @@ function switchTab(tab) {
   });
   ensureDaily();
   updateTopbar();
+  updateAdVisibility(tab); // 広告はホーム画面だけ（任務中は非表示）
   $screen.scrollTop = 0;
   if (tab === "home") renderHome();
   else if (tab === "missions") renderMissions();
@@ -609,7 +610,8 @@ function renderParent() {
       <b>安全設計について</b>
       <ul>
         <li>自由入力チャットはありません（全キャラのセリフは事前作成）</li>
-        <li>課金・広告・外部リンク・SNS共有機能はありません</li>
+        <li>課金・SNS共有機能はありません</li>
+        <li>広告はホーム画面下部のバナー1枠のみ（なぞとき中は表示されません／非パーソナライズ広告）</li>
         <li>問題は端末内で日替わり生成され、オフラインでも遊べます</li>
         <li>1日の任務数を超えると「今日はここまで」と区切ります</li>
         <li>章が進むとAIサポート（ヒント）が減り（第5章で0回）、大人でも難しい「おにむず」問題が混ざります</li>
@@ -708,6 +710,7 @@ if ("serviceWorker" in navigator) {
 
 ensureDaily();
 updateTopbar();
+initAdBar();
 if (S.firstRun) {
   switchTab("home");
   firstRunFlow();

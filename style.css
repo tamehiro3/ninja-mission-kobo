@@ -67,6 +67,28 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* ---------- 広告バー（ホーム画面のみ表示） ---------- */
+#ad-bar {
+  flex-shrink: 0;
+  background: #fff;
+  border-top: 1px solid #eadfc8;
+  min-height: 0;
+  max-height: 70px;
+  overflow: hidden;
+}
+.ad-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px;
+  font-size: 12px;
+  color: #b3a888;
+  text-align: center;
+}
+.ad-placeholder span { font-size: 10px; }
+
 /* ---------- タブバー ---------- */
 #tabbar {
   display: flex;
