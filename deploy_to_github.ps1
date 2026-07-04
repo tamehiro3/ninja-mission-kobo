@@ -2,30 +2,32 @@
 # CNP にんじゃミッション工房 - GitHub Pages 公開スクリプト
 # 「★ゲームを公開する.bat」から実行されます
 # ============================================================
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 $repoName = "ninja-mission-kobo"
 $gameDir = $PSScriptRoot
 
 function Write-Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
 
 # gh コマンドを探す（インストール直後はPATH未反映のことがある）
-$gh = Get-Command gh -ErrorAction SilentlyContinue
-if (-not $gh) {
-    $candidate = "$env:ProgramFiles\GitHub CLI\gh.exe"
-    if (Test-Path $candidate) { $gh = $candidate } else {
-        Write-Host "GitHub CLI が見つかりません。先に以下を実行してください：" -ForegroundColor Red
-        Write-Host "  winget install --id GitHub.cli"
-        Read-Host "Enterで終了"
-        exit 1
-    }
-} else { $gh = $gh.Source }
+$ghCmd = Get-Command gh -ErrorAction SilentlyContinue
+if ($ghCmd) { $gh = $ghCmd.Source }
+elseif (Test-Path "$env:ProgramFiles\GitHub CLI\gh.exe") { $gh = "$env:ProgramFiles\GitHub CLI\gh.exe" }
+else {
+    Write-Host "GitHub CLI が見つかりません。先に以下を実行してください：" -ForegroundColor Red
+    Write-Host "  winget install --id GitHub.cli"
+    Read-Host "Enterで終了"
+    exit 1
+}
 
 Write-Step "1/5 GitHubログイン確認"
-& $gh auth status 2>$null
+& $gh auth status
 if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
     Write-Host "ブラウザでGitHubにログインします。" -ForegroundColor Yellow
     Write-Host "・GitHubアカウントがない場合は、開いた画面から無料で作成できます"
-    Write-Host "・画面に表示される 8桁のコード をブラウザに入力してください"
+    Write-Host "・この画面に表示される 8桁のコード をブラウザに入力してください"
+    Write-Host ""
     & $gh auth login --hostname github.com --git-protocol https --web
     if ($LASTEXITCODE -ne 0) { Read-Host "ログインに失敗しました。Enterで終了"; exit 1 }
 }
@@ -33,24 +35,26 @@ if ($LASTEXITCODE -ne 0) {
 Write-Step "2/5 ゲームファイルをコミット"
 Set-Location $gameDir
 git add -A
-git commit -m "CNP ninja mission kobo" 2>$null
+git commit -m "update ninja mission kobo"
 if ($LASTEXITCODE -ne 0) { Write-Host "（変更なし。そのまま続行）" }
 
 Write-Step "3/5 GitHubリポジトリを作成してアップロード"
 $owner = (& $gh api user -q .login)
-& $gh repo view "$owner/$repoName" 2>$null | Out-Null
+if (-not $owner) { Read-Host "GitHubユーザー名を取得できませんでした。Enterで終了"; exit 1 }
+& $gh repo view "$owner/$repoName" | Out-Null
 if ($LASTEXITCODE -ne 0) {
     & $gh repo create $repoName --public --source . --push
+    if ($LASTEXITCODE -ne 0) { Read-Host "リポジトリ作成に失敗しました。Enterで終了"; exit 1 }
 } else {
-    git remote get-url origin 2>$null | Out-Null
+    git remote get-url origin | Out-Null
     if ($LASTEXITCODE -ne 0) { git remote add origin "https://github.com/$owner/$repoName.git" }
-    git push -u origin HEAD 2>$null
-    if ($LASTEXITCODE -ne 0) { git push -u origin HEAD --force }
+    git push -u origin HEAD
+    if ($LASTEXITCODE -ne 0) { Read-Host "アップロードに失敗しました。Enterで終了"; exit 1 }
 }
 
 Write-Step "4/5 GitHub Pages を有効化"
 $branch = (git branch --show-current)
-& $gh api "repos/$owner/$repoName/pages" -X POST -f "source[branch]=$branch" -f "source[path]=/" 2>$null
+& $gh api "repos/$owner/$repoName/pages" -X POST -f "source[branch]=$branch" -f "source[path]=/"
 if ($LASTEXITCODE -ne 0) { Write-Host "（すでに有効化ずみ。そのまま続行）" }
 
 $url = "https://$owner.github.io/$repoName/"
@@ -76,6 +80,5 @@ Write-Host "   iPhone : Safariで開く → 共有ボタン → ホーム画面�
 Write-Host "   Android: Chromeで開く → メニュー(⋮) → アプリをインストール"
 Write-Host "============================================================" -ForegroundColor Green
 Start-Process $url
-Set-Clipboard -Value $url
-Write-Host "（URLはコピーずみ。LINEやメールでスマホに送れます）"
+try { Set-Clipboard -Value $url; Write-Host "（URLはコピーずみ。LINEやメールでスマホに送れます）" } catch {}
 Read-Host "Enterで終了"
