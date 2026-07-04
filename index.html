@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <title>CNP にんじゃミッション工房</title>
+  <meta name="description" content="AIが毎日つくる安全な忍者なぞときで、かわいいニンジャと里を育てるゲーム">
+  <meta name="theme-color" content="#2b3a67">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="にんじゃ工房">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="res" id="res-coins">🪙 <span>0</span></div>
+      <div class="res" id="res-wood">🪵 <span>0</span></div>
+      <div class="res" id="res-star">⭐ <span>0</span></div>
+      <div class="res" id="res-scroll">📜 <span>0</span></div>
+    </header>
+    <main id="screen"></main>
+    <nav id="tabbar">
+      <button data-tab="home"><span class="ticon">🏯</span><span>さと</span></button>
+      <button data-tab="missions"><span class="ticon">📜</span><span>にんむ</span></button>
+      <button data-tab="chars"><span class="ticon">🥷</span><span>なかま</span></button>
+      <button data-tab="build"><span class="ticon">🛠️</span><span>つくる</span></button>
+      <button data-tab="parent"><span class="ticon">⚙️</span><span>おうち</span></button>
+    </nav>
+  </div>
+  <div id="overlay" class="hidden"></div>
+  <script src="data.js"></script>
+  <script src="gen.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
