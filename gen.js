@@ -87,9 +87,9 @@ GEN.choiceButtons = function (container, choices, answerIndex, api, rnd) {
 
 GEN.builders = {};
 
-// ① ことばなぞなぞ
+// ① ことばなぞなぞ（diff3＝おにむず：とんち・ろんり）
 GEN.builders.riddle = function (rnd, diff) {
-  const r = GEN.pick(DATA.RIDDLES, rnd);
+  const r = GEN.pick(diff >= 3 ? DATA.RIDDLES_HARD : DATA.RIDDLES, rnd);
   return {
     hints: [
       "もんだいを こえに だして ゆっくり よんでみよう",
@@ -103,9 +103,9 @@ GEN.builders.riddle = function (rnd, diff) {
   };
 };
 
-// ② すいりミッション
+// ② すいりミッション（diff3＝おにむず：ろんりパズル）
 GEN.builders.deduce = function (rnd, diff) {
-  const c = GEN.pick(DATA.DEDUCE, rnd);
+  const c = GEN.pick(diff >= 3 ? DATA.DEDUCE_HARD : DATA.DEDUCE, rnd);
   return {
     title: c.title,
     hints: [
@@ -135,9 +135,9 @@ GEN.builders.deduce = function (rnd, diff) {
   };
 };
 
-// ③ じゅんばんパズル
+// ③ じゅんばんパズル（diff3＝おにむず：6ステップ）
 GEN.builders.order = function (rnd, diff) {
-  const o = GEN.pick(DATA.ORDERS, rnd);
+  const o = GEN.pick(diff >= 3 ? DATA.ORDERS_HARD : DATA.ORDERS, rnd);
   const steps = o.steps;
   let shuffled = steps;
   for (let t = 0; t < 10 && shuffled.join() === steps.join(); t++) shuffled = GEN.shuffle(steps, rnd);
@@ -187,18 +187,19 @@ GEN.builders.order = function (rnd, diff) {
 
 // ④ まきものきおく
 GEN.builders.memory = function (rnd, diff) {
-  const n = diff === 0 ? 3 : diff === 1 ? 4 : 5;
-  const secs = diff === 0 ? 7 : diff === 1 ? 6 : 5;
+  const n = diff === 0 ? 3 : diff === 1 ? 4 : diff === 2 ? 5 : 6;
+  const secs = diff === 0 ? 7 : diff === 1 ? 6 : diff === 2 ? 5 : 3;
+  const nChoice = diff >= 3 ? 5 : 3; // 正解いがいの選択肢の数
   const pool = GEN.shuffle(DATA.MEMORY_POOL, rnd);
   const shown = pool.slice(0, n);
-  const others = pool.slice(n, n + 3);
+  const others = pool.slice(n, n + nChoice);
   const askPresent = rnd() < 0.5;
   let choices, aIdx;
   if (askPresent) {
     choices = [shown[Math.floor(rnd() * n)], ...others];
     aIdx = 0;
   } else {
-    choices = [others[0], ...GEN.shuffle(shown, rnd).slice(0, 3)];
+    choices = [others[0], ...GEN.shuffle(shown, rnd).slice(0, nChoice)];
     aIdx = 0;
   }
   const q = askPresent ? "まきものに あったものは どれ？" : "まきものに なかったものは どれ？";
@@ -237,8 +238,8 @@ GEN.builders.observe = function (rnd, diff) {
   const flip = rnd() < 0.5;
   const base = flip ? pair[1] : pair[0];
   const odd = flip ? pair[0] : pair[1];
-  const cols = diff === 0 ? 4 : 5;
-  const rows = diff === 0 ? 4 : diff === 1 ? 5 : 6;
+  const cols = diff === 0 ? 4 : diff >= 3 ? 6 : 5;
+  const rows = diff === 0 ? 4 : diff === 1 ? 5 : diff === 2 ? 6 : 8;
   const total = cols * rows;
   const oddPos = Math.floor(rnd() * total);
   const oddRow = Math.floor(oddPos / cols);
@@ -284,7 +285,7 @@ GEN.builders.observe = function (rnd, diff) {
 
 // ⑥ めいろミッション
 GEN.builders.maze = function (rnd, diff) {
-  const n = diff === 0 ? 4 : diff === 1 ? 5 : 6; // 論理セル数
+  const n = diff === 0 ? 4 : diff === 1 ? 5 : diff === 2 ? 6 : 8; // 論理セル数
   const size = 2 * n + 1;
   // 迷路生成（穴掘り法）
   const W = Array.from({ length: size }, () => Array(size).fill(1));
@@ -389,29 +390,38 @@ GEN.builders.maze = function (rnd, diff) {
   };
 };
 
-// ⑦ あんごうなぞとき（きごう→もじ）
+// ⑦ あんごうなぞとき（きごう→もじ。diff3＝ひょうが はんぶん「？」になる）
 GEN.builders.cipher = function (rnd, diff) {
-  const maxLen = diff === 0 ? 4 : 6;
-  const cands = DATA.WORDS.filter(w => w.w.length >= 3 && w.w.length <= maxLen);
+  const hard = diff >= 3;
+  let cands;
+  if (hard) {
+    cands = DATA.WORDS_HARD.concat(DATA.WORDS.filter(w => w.w.length >= 5));
+  } else {
+    const maxLen = diff === 0 ? 4 : 6;
+    cands = DATA.WORDS.filter(w => w.w.length >= 3 && w.w.length <= maxLen);
+  }
   const word = GEN.pick(cands, rnd);
   const uniq = [...new Set(word.w.split(""))];
   const syms = GEN.shuffle(DATA.SYMBOLS, rnd).slice(0, uniq.length);
   const map = {};
   uniq.forEach((k, i) => { map[k] = syms[i]; });
   const encoded = word.w.split("").map(k => map[k]).join(" ");
-  const others = GEN.shuffle(DATA.WORDS.filter(w => w.w !== word.w), rnd).slice(0, 3).map(w => w.w);
+  const pool = hard ? DATA.WORDS_HARD.concat(DATA.WORDS) : DATA.WORDS;
+  const others = GEN.shuffle(pool.filter(w => w.w !== word.w), rnd).slice(0, hard ? 5 : 3).map(w => w.w);
   const choices = [word.w, ...others];
+  // おにむず：ひょうの はんぶんが「？」→ のこりは すいりで うめる
+  const shownKeys = hard ? GEN.shuffle(uniq, rnd).slice(0, Math.ceil(uniq.length / 2)) : uniq;
   return {
     hints: [
-      "ひょうを みながら 1もじずつ おきかえてみよう",
+      hard ? "わかる もじだけ うめて、のこりは えらぶ ことばと くらべよう" : "ひょうを みながら 1もじずつ おきかえてみよう",
       "さいしょの もじは「" + word.w[0] + "」だよ",
       "こたえは " + word.w.length + "もじ。「" + word.cat + "」の なかまだよ"
     ],
     mount(el, api) {
-      el.appendChild(GEN.el("div", "qtext", "にんじゃあんごうを かいどくせよ！"));
+      el.appendChild(GEN.el("div", "qtext", hard ? "🔥おにむず あんごう！ ひょうの はんぶんは なぞの まま…" : "にんじゃあんごうを かいどくせよ！"));
       const keyWrap = GEN.el("div", "cipher-key");
       GEN.shuffle(uniq, rnd).forEach(k => {
-        keyWrap.appendChild(GEN.el("div", "key-item", map[k] + " = " + k));
+        keyWrap.appendChild(GEN.el("div", "key-item", map[k] + " = " + (shownKeys.includes(k) ? k : "？")));
       });
       el.appendChild(keyWrap);
       el.appendChild(GEN.el("div", "cipher-code", encoded));
@@ -420,13 +430,16 @@ GEN.builders.cipher = function (rnd, diff) {
   };
 };
 
-// ⑧ さかさことば
+// ⑧ さかさことば（diff3＝ながい ことば＋えらびにくい 6たく）
 GEN.builders.reverse = function (rnd, diff) {
-  const maxLen = diff === 0 ? 4 : 6;
-  const cands = DATA.WORDS.filter(w => w.w.length >= 3 && w.w.length <= maxLen);
+  const hard = diff >= 3;
+  const cands = hard
+    ? DATA.WORDS_HARD
+    : DATA.WORDS.filter(w => w.w.length >= 3 && w.w.length <= (diff === 0 ? 4 : 6));
   const word = GEN.pick(cands, rnd);
   const rev = word.w.split("").reverse().join("");
-  const others = GEN.shuffle(DATA.WORDS.filter(w => w.w !== word.w), rnd).slice(0, 3).map(w => w.w);
+  const pool = hard ? DATA.WORDS_HARD.concat(DATA.WORDS.filter(w => w.w.length >= 5)) : DATA.WORDS;
+  const others = GEN.shuffle(pool.filter(w => w.w !== word.w), rnd).slice(0, hard ? 5 : 3).map(w => w.w);
   return {
     hints: [
       "うしろから 1もじずつ よんでみよう",
@@ -441,10 +454,12 @@ GEN.builders.reverse = function (rnd, diff) {
   };
 };
 
-// ⑨ ことばならべ（アナグラム）
+// ⑨ ことばならべ（アナグラム。diff3＝ながい ことば・おだいヒントなし）
 GEN.builders.anagram = function (rnd, diff) {
-  const maxLen = diff === 0 ? 4 : 5;
-  const cands = DATA.WORDS.filter(w => w.w.length >= 3 && w.w.length <= maxLen);
+  const hard = diff >= 3;
+  const cands = hard
+    ? DATA.WORDS_HARD
+    : DATA.WORDS.filter(w => w.w.length >= 3 && w.w.length <= (diff === 0 ? 4 : 5));
   const word = GEN.pick(cands, rnd);
   const chars = word.w.split("");
   let tiles = chars;
@@ -456,7 +471,9 @@ GEN.builders.anagram = function (rnd, diff) {
       "こたえは「" + word.w + "」…ないしょだよ"
     ],
     mount(el, api) {
-      el.appendChild(GEN.el("div", "qtext", "ばらばらの もじを ならべなおして<br>「" + word.cat + "」の ことばを つくろう！"));
+      el.appendChild(GEN.el("div", "qtext", hard
+        ? "🔥おにむず！ ばらばらの もじを ならべなおそう。<br>なんの ことばかは ないしょ…！"
+        : "ばらばらの もじを ならべなおして<br>「" + word.cat + "」の ことばを つくろう！"));
       const slots = GEN.el("div", "anag-slots");
       el.appendChild(slots);
       const tileWrap = GEN.el("div", "anag-tiles");
@@ -517,15 +534,26 @@ GEN.builders.math = function (rnd, diff) {
     ans = a * b;
     formula = a + " × " + b;
     q = "にんじゃが " + b + "にん いるよ。ひとり " + a + "まいずつ しゅりけんを なげたよ。ぜんぶで なんまい？";
-  } else {
+  } else if (diff === 2) {
     const a = ri(3, 9), b = ri(2, 5), c = ri(2, 9);
     ans = a * b + c;
     formula = a + " × " + b + " + " + c;
     q = "まとに " + b + "かい しゅりけんを なげて、まいかい " + a + "てん とったよ。ボーナスで " + c + "てん もらえたよ。ごうけいは なんてん？";
+  } else {
+    // 🔥おにむず：2つの チームの さを もとめる
+    const a = ri(6, 9), b = ri(6, 9), c = ri(3, 7), d = ri(3, 7);
+    ans = a * b - c * d;
+    if (ans <= 0) { ans = a * b + c * d; formula = a + " × " + b + " + " + c + " × " + d;
+      q = "あかぐみは " + a + "にんが " + b + "まいずつ、しろぐみは " + c + "にんが " + d + "まいずつ しゅりけんを なげたよ。ぜんぶで なんまい？";
+    } else {
+      formula = a + " × " + b + " − " + c + " × " + d;
+      q = "あかぐみは " + a + "にんが " + b + "まいずつ、しろぐみは " + c + "にんが " + d + "まいずつ しゅりけんを なげたよ。あかぐみは しろぐみより なんまい おおい？";
+    }
   }
+  const near = diff >= 3 ? 2 : 4; // おにむずは 答えに ちかい ひっかけ
   const set = new Set([ans]);
   while (set.size < 4) {
-    const d = ans + (ri(0, 1) ? 1 : -1) * ri(1, 4);
+    const d = ans + (ri(0, 1) ? 1 : -1) * ri(1, near);
     if (d > 0) set.add(d);
   }
   const choices = [...set].map(String);

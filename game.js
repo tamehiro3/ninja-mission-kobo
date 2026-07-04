@@ -6,10 +6,10 @@ const SAVE_KEY = "ninja_kobo_save_v1";
 const GRID_COLS = 8, GRID_ROWS = 6;
 
 const DEFAULT_STATE = {
-  version: 1,
+  version: 2,
   firstRun: true,
-  partner: "leelee",
-  unlocked: ["leelee", "mitama", "orochi"],
+  partner: "sakuya",
+  unlocked: ["sakuya", "nemu", "xiaolan"],
   coins: 50, wood: 0, star: 0, scroll: 0,
   inventory: {},          // itemId -> 個数（未配置）
   village: {},            // "r_c" -> itemId
@@ -31,11 +31,16 @@ function loadState() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (raw) {
       const s = JSON.parse(raw);
-      return Object.assign({}, DEFAULT_STATE, s, {
+      const merged = Object.assign({}, DEFAULT_STATE, s, {
         daily: Object.assign({}, DEFAULT_STATE.daily, s.daily),
         history: Object.assign({}, DEFAULT_STATE.history, s.history),
         settings: Object.assign({}, DEFAULT_STATE.settings, s.settings)
       });
+      // 旧キャラ名のセーブデータを新キャラへ移行
+      if (!DATA.CHARS[merged.partner]) merged.partner = "sakuya";
+      merged.unlocked = (merged.unlocked || []).filter(id => DATA.CHARS[id]);
+      DATA.STARTER_CHARS.forEach(id => { if (!merged.unlocked.includes(id)) merged.unlocked.push(id); });
+      return merged;
     }
   } catch (e) { /* 壊れたデータは初期化 */ }
   return JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -65,7 +70,7 @@ function chapterInfo() {
   return { ch, idx };
 }
 
-function partner() { return DATA.CHARS[S.partner] || DATA.CHARS.leelee; }
+function partner() { return DATA.CHARS[S.partner] || DATA.CHARS.sakuya; }
 
 function line(char, kind, rnd) {
   const arr = char.lines[kind];
@@ -197,10 +202,16 @@ function renderMissions() {
   const t = today();
   const types = GEN.dailyMissions(t).slice(0, S.settings.missionsPerDay);
   const p = partner();
+  const { ch } = chapterInfo();
+  const hardCount = Math.min(ch.hard, types.length);
+  const isHard = i => i >= types.length - hardCount;
   const allDone = types.every((_, i) => S.daily.done.includes(i));
 
+  const supportNote = ch.hints > 0
+    ? `🤖 AIまきもの工房が きょうの にんむを つくったよ（AIサポートは 1にんむに ${ch.hints}かいまで）`
+    : `🤖 ${ch.name}では AIサポートなし！ じぶんの ちからだけで いどもう！`;
   let html = `<div class="page-title">📜 きょうの にんむ <span class="date">${t}</span></div>
-    <div class="ai-note">🤖 AIまきもの工房が きょうの にんむを つくったよ</div>`;
+    <div class="ai-note">${supportNote}</div>`;
 
   if (allDone) {
     html += `<div class="day-end">
@@ -216,48 +227,54 @@ function renderMissions() {
     const meta = DATA.MISSION_TYPES[type];
     const done = S.daily.done.includes(i);
     const special = p.specialty.includes(type);
-    html += `<div class="mission-card ${done ? "done" : ""}">
+    const hard = isHard(i);
+    html += `<div class="mission-card ${done ? "done" : ""} ${hard ? "hard" : ""}">
       <div class="m-icon">${meta.icon}</div>
       <div class="m-body">
-        <div class="m-label">${meta.label}${special ? ` <span class="m-special">${p.emoji}とくい！</span>` : ""}</div>
-        <div class="m-story">${meta.story}</div>
+        <div class="m-label">${meta.label}${hard ? " <span class='m-hard'>🔥おにむず</span>" : ""}${special ? ` <span class="m-special">${p.emoji}とくい！</span>` : ""}</div>
+        <div class="m-story">${hard ? "おとなでも てこずる もんだいだ…ほうしゅうは 2ばい！" : meta.story}</div>
       </div>
-      ${done ? "<div class='m-done'>✅</div>" : `<button class="btn small" data-play="${i}" data-type="${type}">あそぶ</button>`}
+      ${done ? "<div class='m-done'>✅</div>" : `<button class="btn small" data-play="${i}" data-type="${type}" data-hard="${hard ? 1 : 0}">あそぶ</button>`}
     </div>`;
   });
   html += "</div>";
   $screen.innerHTML = html;
 
   $screen.querySelectorAll("[data-play]").forEach(b => {
-    b.onclick = () => playMission(Number(b.dataset.play), b.dataset.type);
+    b.onclick = () => playMission(Number(b.dataset.play), b.dataset.type, b.dataset.hard === "1");
   });
   const eb = document.getElementById("end-build");
   if (eb) eb.onclick = () => switchTab("build");
 }
 
 // ---------- 任務プレイ ----------
-function playMission(idx, type) {
+function playMission(idx, type, isHard) {
   playCleanups.forEach(f => f());
   playCleanups = [];
-  const diff = S.settings.difficulty;
+  const diff = isHard ? 3 : S.settings.difficulty;
   const t = today();
   const puzzle = GEN.build(type, t, idx, diff);
   const p = partner();
   const rnd = GEN.rng(GEN.hash(t + ":play:" + idx));
+  const maxHints = chapterInfo().ch.hints; // 章がすすむと AIサポートが へる
   let hintsUsed = 0, misses = 0;
+
+  const hintUI = maxHints > 0
+    ? `<button class="btn ghost" id="hint-btn">🤖 AIサポート（のこり${maxHints}かい）</button>`
+    : `<div class="no-support">🤖 この章は AIサポートなし！ じぶんの ちからで とこう！</div>`;
 
   $screen.innerHTML = `
     <div class="play-head">
       <button class="btn small ghost" id="play-back">← もどる</button>
-      <div class="play-title">${puzzle.icon} ${puzzle.label}</div>
+      <div class="play-title">${puzzle.icon} ${puzzle.label}${isHard ? " <span class='m-hard'>🔥おにむず</span>" : ""}</div>
     </div>
     <div class="partner-row">
       <div class="partner-face" style="background:${p.color}22;border-color:${p.color}">${p.emoji}</div>
-      <div class="bubble" id="play-say">${line(p, "start", rnd)}</div>
+      <div class="bubble" id="play-say">${isHard ? "🔥おにむず にんむだ…！ おちついて いこう！" : line(p, "start", rnd)}</div>
     </div>
     <div class="puzzle-area" id="puzzle-area"></div>
     <div class="hint-area" id="hint-area"></div>
-    <button class="btn ghost" id="hint-btn">💡 ヒント（のこり3かい）</button>
+    ${hintUI}
   `;
 
   const area = document.getElementById("puzzle-area");
@@ -270,7 +287,7 @@ function playMission(idx, type) {
     solve() {
       if (finished) return;
       finished = true;
-      finishMission(idx, type, puzzle, hintsUsed, misses);
+      finishMission(idx, type, puzzle, hintsUsed, misses, isHard);
     },
     miss() {
       if (finished) return;
@@ -282,33 +299,35 @@ function playMission(idx, type) {
   };
 
   document.getElementById("play-back").onclick = () => switchTab("missions");
-  hintBtn.onclick = () => {
-    if (hintsUsed >= 3 || finished) return;
-    hintsUsed++;
-    const div = document.createElement("div");
-    div.className = "hint-line pop";
-    div.textContent = "💡 " + puzzle.hints[hintsUsed - 1];
-    hintArea.appendChild(div);
-    hintBtn.textContent = hintsUsed >= 3 ? "ヒントは おしまい" : `💡 ヒント（のこり${3 - hintsUsed}かい）`;
-    if (hintsUsed >= 3) hintBtn.disabled = true;
-    if (puzzle.onHint) puzzle.onHint(hintsUsed, $screen);
-  };
+  if (hintBtn) {
+    hintBtn.onclick = () => {
+      if (hintsUsed >= maxHints || finished) return;
+      hintsUsed++;
+      const div = document.createElement("div");
+      div.className = "hint-line pop";
+      div.textContent = "🤖 " + puzzle.hints[hintsUsed - 1];
+      hintArea.appendChild(div);
+      hintBtn.textContent = hintsUsed >= maxHints ? "AIサポートは おしまい" : `🤖 AIサポート（のこり${maxHints - hintsUsed}かい）`;
+      if (hintsUsed >= maxHints) hintBtn.disabled = true;
+      if (puzzle.onHint) puzzle.onHint(hintsUsed, $screen);
+    };
+  }
 
   puzzle.mount(area, api);
 }
 
-function finishMission(idx, type, puzzle, hintsUsed, misses) {
+function finishMission(idx, type, puzzle, hintsUsed, misses, isHard) {
   const diff = S.settings.difficulty;
   const p = partner();
-  const base = diff === 0 ? 20 : diff === 1 ? 30 : 40;
+  const base = isHard ? 60 : diff === 0 ? 20 : diff === 1 ? 30 : 40;
   const special = p.specialty.includes(type);
-  let coins = Math.max(8, base - hintsUsed * 5 - misses * 2) + (special ? 10 : 0);
+  let coins = Math.max(isHard ? 20 : 8, base - hintsUsed * 5 - misses * 2) + (special ? 10 : 0);
 
   const rnd = GEN.rng(GEN.hash(today() + ":reward:" + idx));
   const mats = ["wood", "star", "scroll"];
   const matNames = { wood: "🪵 もくざい", star: "⭐ ほしのかけら", scroll: "📜 まきもの" };
   const mat = mats[Math.floor(rnd() * 3)];
-  const matAmt = diff === 2 ? 2 : 1;
+  const matAmt = isHard ? 2 : diff === 2 ? 2 : 1;
 
   S.coins += coins;
   S[mat] += matAmt;
@@ -325,10 +344,10 @@ function finishMission(idx, type, puzzle, hintsUsed, misses) {
   const m = showOverlay(`
     <div class="result">
       <div class="result-emoji">${p.emoji}</div>
-      <div class="result-title">${praise}</div>
-      <div class="result-line">${line(p, "clear")}</div>
+      <div class="result-title">${isHard ? "🔥おにむず せいは！" : praise}</div>
+      <div class="result-line">${isHard ? "おとなでも てこずる もんだいを といたぞ！ " : ""}${line(p, "clear")}</div>
       <div class="result-rewards">
-        <div class="reward-item pop">🪙 コイン ×${coins}${special ? " <span class='m-special'>とくいボーナス+10</span>" : ""}</div>
+        <div class="reward-item pop">🪙 コイン ×${coins}${special ? " <span class='m-special'>とくいボーナス+10</span>" : ""}${isHard ? " <span class='m-hard'>🔥おにむずほうしゅう</span>" : ""}</div>
         <div class="reward-item pop">${matNames[mat]} ×${matAmt}</div>
       </div>
       <button class="btn big" id="result-next">つぎへ</button>
@@ -341,11 +360,14 @@ function finishMission(idx, type, puzzle, hintsUsed, misses) {
       save();
       const ch = DATA.CHAPTERS[newCh];
       confetti();
+      const rules = [];
+      rules.push(ch.hints > 0 ? `🤖 AIサポートは 1にんむに ${ch.hints}かいまで` : "🤖 AIサポートは そつぎょう！ もう じぶんの ちからで とける はず！");
+      if (ch.hard > 0) rules.push(`🔥 1にちに ${ch.hard}この「おにむず」にんむが まざるよ（ほうしゅう2ばい）`);
       const m2 = showOverlay(`
         <div class="result">
           <div class="result-emoji">${ch.emoji}</div>
           <div class="result-title">しょうしんおめでとう！</div>
-          <div class="result-line">「${ch.name}」に すすんだよ！</div>
+          <div class="result-line">「${ch.name}」に すすんだよ！<br><br>${rules.join("<br>")}</div>
           <button class="btn big" id="ch-ok">やったー！</button>
         </div>
       `, true);
@@ -368,8 +390,7 @@ function renderChars() {
     } else if (unlocked) {
       action = `<button class="btn small" data-pick="${c.id}">あいぼうに する</button>`;
     } else {
-      const cost = c.unlock.coins ? `🪙 ${c.unlock.coins}` : `⭐ ${c.unlock.star}`;
-      action = `<button class="btn small ghost" data-unlock="${c.id}">${cost} で なかまにする</button>`;
+      action = `<button class="btn small ghost" data-unlock="${c.id}">${costText(c.unlock)} で なかまにする</button>`;
     }
     html += `<div class="char-card ${isPartner ? "picked" : ""} ${unlocked ? "" : "locked"}" style="border-color:${isPartner ? c.color : "transparent"}">
       <div class="char-face" style="background:${c.color}22">${unlocked ? c.emoji : "❓"}</div>
@@ -396,13 +417,14 @@ function renderChars() {
     b.onclick = () => {
       const c = DATA.CHARS[b.dataset.unlock];
       const need = c.unlock;
-      const ok = need.coins ? S.coins >= need.coins : S.star >= need.star;
-      if (!ok) {
-        const needTxt = need.coins ? `コインが 🪙${need.coins} ひつよう` : `ほしのかけらが ⭐${need.star} ひつよう`;
-        showOverlay(`<div class="result"><div class="result-emoji">😌</div><div class="result-line">まだ ${needTxt}だよ。<br>にんむを クリアして あつめよう！</div><button class="btn" onclick="hideOverlay()">わかった</button></div>`);
+      if (!canAfford(need)) {
+        showOverlay(`<div class="result"><div class="result-emoji">😌</div><div class="result-line">まだ ${costText(need)} が ひつようだよ。<br>にんむを クリアして あつめよう！</div><button class="btn" onclick="hideOverlay()">わかった</button></div>`);
         return;
       }
-      if (need.coins) S.coins -= need.coins; else S.star -= need.star;
+      S.coins -= need.coins || 0;
+      S.wood -= need.wood || 0;
+      S.star -= need.star || 0;
+      S.scroll -= need.scroll || 0;
       if (!S.unlocked.includes(c.id)) S.unlocked.push(c.id);
       S.partner = c.id;
       save();
@@ -590,6 +612,8 @@ function renderParent() {
         <li>課金・広告・外部リンク・SNS共有機能はありません</li>
         <li>問題は端末内で日替わり生成され、オフラインでも遊べます</li>
         <li>1日の任務数を超えると「今日はここまで」と区切ります</li>
+        <li>章が進むとAIサポート（ヒント）が減り（第5章で0回）、大人でも難しい「おにむず」問題が混ざります</li>
+        <li>キャラクターはCryptoNinja（CC0）の咲耶・ネム・シャオランたちです</li>
       </ul>
     </div>
     <button class="btn ghost" id="show-install">📲 スマホへのインストール方法</button>
