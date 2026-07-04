@@ -9,9 +9,9 @@ $gameDir = $PSScriptRoot
 
 function Write-Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
 
-# gh コマンドを探す（インストール直後はPATH未反映のことがある）
-$ghCmd = Get-Command gh -ErrorAction SilentlyContinue
-if ($ghCmd) { $gh = $ghCmd.Source }
+# gh コマンドを探す（ポータブル版→PATH→Program Files の順）
+if (Test-Path "$env:LOCALAPPDATA\Programs\GitHubCLI\bin\gh.exe") { $gh = "$env:LOCALAPPDATA\Programs\GitHubCLI\bin\gh.exe" }
+elseif (Get-Command gh -ErrorAction SilentlyContinue) { $gh = (Get-Command gh).Source }
 elseif (Test-Path "$env:ProgramFiles\GitHub CLI\gh.exe") { $gh = "$env:ProgramFiles\GitHub CLI\gh.exe" }
 else {
     Write-Host "GitHub CLI が見つかりません。先に以下を実行してください：" -ForegroundColor Red
