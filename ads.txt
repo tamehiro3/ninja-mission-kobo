@@ -1,3 +1,1 @@
-# AdSense審査に合格したら、下の行の「pub-0000000000000000」を
-# 自分のサイト運営者ID（ads.jsに入れたものと同じ）に書き換えて公開する。
-# google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+google.com, pub-2175971581635704, DIRECT, f08c47fec0942fa0

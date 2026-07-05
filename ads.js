@@ -12,8 +12,8 @@
 
 const AD_CONFIG = {
   enabled: true,
-  client: "",   // 例: "ca-pub-1234567890123456"（AdSense審査合格後に入力）
-  slot: ""      // 例: "1234567890"（ディスプレイ広告ユニットのスロットID）
+  client: "ca-pub-2175971581635704",  // サイト運営者ID（設定済み）
+  slot: ""      // 審査合格後にディスプレイ広告ユニットを作成してスロットIDを入力
 };
 
 let adInitialized = false;
@@ -24,8 +24,8 @@ function initAdBar() {
   adInitialized = true;
 
   if (!AD_CONFIG.client || !AD_CONFIG.slot) {
-    // ID未設定：プレースホルダー表示（設定するとここが実広告になる）
-    bar.innerHTML = "<div class='ad-placeholder'>🪧 こうこくスペース<span>ads.js に AdSense ID を入れると表示されます</span></div>";
+    // スロット未設定（審査待ち）：プレースホルダー表示
+    bar.innerHTML = "<div class='ad-placeholder'>🪧 こうこくスペース<span>AdSense審査の承認後に広告が表示されます</span></div>";
     return;
   }
 
