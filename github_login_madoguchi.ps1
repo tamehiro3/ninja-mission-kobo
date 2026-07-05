@@ -6,6 +6,9 @@ $ErrorActionPreference = "Continue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $clientId = "178c6fc778ccc68e1d6a"  # GitHub CLI 公式クライアントID
 $token = $null
+$logFile = "$PSScriptRoot\login_madoguchi.log"
+function Log($msg) { ((Get-Date).ToString("HH:mm:ss") + " " + $msg) | Add-Content -Path $logFile -Encoding UTF8 }
+Log "=== 窓口起動 ==="
 
 while (-not $token) {
     try {
@@ -19,6 +22,7 @@ while (-not $token) {
     $deadline = (Get-Date).AddSeconds($resp.expires_in - 30)
     $interval = [int]$resp.interval + 1
     $opened = $false
+    Log ("コード発行: " + $resp.user_code + " (期限 " + $deadline.ToString("HH:mm") + ")")
 
     while ((Get-Date) -lt $deadline) {
         Clear-Host
@@ -49,7 +53,7 @@ while (-not $token) {
         } catch { continue }
         if ($r.access_token) { $token = $r.access_token; break }
         if ($r.error -eq "slow_down") { $interval += 5 }
-        if ($r.error -eq "expired_token" -or $r.error -eq "access_denied") { break }
+        if ($r.error -eq "expired_token" -or $r.error -eq "access_denied") { Log ("コード失効/拒否: " + $r.error); break }
     }
 }
 
@@ -57,12 +61,22 @@ Clear-Host
 Write-Host ""
 Write-Host "  ログインできました！ つづけて ゲームを公開します..." -ForegroundColor Green
 Write-Host ""
+Log "認証成功"
 
-# gh CLI にトークンを登録
-$gh = "$env:LOCALAPPDATA\Programs\GitHubCLI\bin\gh.exe"
-if (-not (Test-Path $gh)) { $gh = "gh" }
-$token | & $gh auth login --hostname github.com --with-token
-& $gh auth setup-git --hostname github.com
+try {
+    # gh CLI にトークンを登録
+    $gh = "$env:LOCALAPPDATA\Programs\GitHubCLI\bin\gh.exe"
+    if (-not (Test-Path $gh)) { $gh = "gh" }
+    $token | & $gh auth login --hostname github.com --with-token
+    & $gh auth setup-git --hostname github.com
+    Log "gh CLI登録完了"
 
-# 公開スクリプトへ（ログイン済みなので全自動で進む）
-& powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\deploy_to_github.ps1"
+    # 公開スクリプトへ（ログイン済みなので全自動で進む）
+    Log "公開スクリプト開始"
+    & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\deploy_to_github.ps1"
+    Log "公開スクリプト終了"
+} catch {
+    Log ("エラー: " + $_.Exception.Message)
+    Write-Host ("エラーが発生しました: " + $_.Exception.Message) -ForegroundColor Red
+    Read-Host "Enterで終了"
+}
