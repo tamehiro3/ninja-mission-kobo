@@ -73,21 +73,20 @@ body {
   background: #fff;
   border-top: 1px solid #eadfc8;
   min-height: 0;
-  max-height: 70px;
+  max-height: 80px;
   overflow: hidden;
 }
-.ad-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 8px;
-  font-size: 12px;
+/* こどもにも「これは こうこく」と わかるように ラベルを出す */
+#ad-bar::before {
+  content: "こうこく";
+  display: block;
+  font-size: 10px;
+  line-height: 14px;
   color: #b3a888;
   text-align: center;
 }
-.ad-placeholder span { font-size: 10px; }
+/* 広告が配信されなかったときは枠ごと隠す */
+#ad-bar:has(ins[data-ad-status="unfilled"]) { display: none !important; }
 
 /* ---------- タブバー ---------- */
 #tabbar {
@@ -570,3 +569,10 @@ button.vcell:active { background: rgba(255,255,255,.9); }
 @keyframes fall {
   to { transform: translateY(105vh) rotate(360deg); opacity: .6; }
 }
+
+/* ---------- 保護者画面のリンク ---------- */
+.parent-links {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px;
+  margin: 10px 0 14px; font-size: 14px;
+}
+.parent-links a { color: #2b3a67; }

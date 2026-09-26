@@ -550,9 +550,12 @@ GEN.builders.math = function (rnd, diff) {
       q = "あかぐみは " + a + "にんが " + b + "まいずつ、しろぐみは " + c + "にんが " + d + "まいずつ しゅりけんを なげたよ。あかぐみは しろぐみより なんまい おおい？";
     }
   }
-  const near = diff >= 3 ? 2 : 4; // おにむずは 答えに ちかい ひっかけ
+  let near = diff >= 3 ? 2 : 4; // おにむずは 答えに ちかい ひっかけ
   const set = new Set([ans]);
+  let tries = 0;
   while (set.size < 4) {
+    // 答えが 1〜2 のときは ちかい数だけでは 3つ そろわないので はばを ひろげる（無限ループ防止）
+    if (++tries % 20 === 0) near++;
     const d = ans + (ri(0, 1) ? 1 : -1) * ri(1, near);
     if (d > 0) set.add(d);
   }
