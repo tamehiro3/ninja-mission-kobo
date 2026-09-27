@@ -1,5 +1,5 @@
 // Service Worker: オフラインでも遊べるようにキャッシュする
-const CACHE = "ninja-kobo-v4";
+const CACHE = "ninja-kobo-v5";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const ASSETS = [
   "./data.js",
   "./gen.js",
   "./ads.js",
+  "./about.html",
   "./game.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",

@@ -619,6 +619,10 @@ function renderParent() {
       </ul>
     </div>
     <button class="btn ghost" id="show-install">📲 スマホへのインストール方法</button>
+    <div class="parent-links">
+      <a href="about.html">📖 遊び方・保護者の方へ</a>
+      <a href="/privacy.html">🔒 プライバシーポリシー</a>
+    </div>
     <button class="btn danger" id="reset-data">データをリセットする</button>
   `;
   document.getElementById("set-missions").onchange = e => { S.settings.missionsPerDay = Number(e.target.value); save(); };
@@ -710,7 +714,6 @@ if ("serviceWorker" in navigator) {
 
 ensureDaily();
 updateTopbar();
-initAdBar();
 if (S.firstRun) {
   switchTab("home");
   firstRunFlow();
